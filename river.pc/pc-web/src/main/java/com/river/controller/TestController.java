@@ -1,5 +1,6 @@
 package com.river.controller;
 
+import com.river.util.DateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
@@ -19,6 +20,7 @@ public class TestController {
     @ResponseBody
     public String test() {
         logger.info("hello test");
-        return "hello test";
+
+        return "hello test" + DateUtil.test();
     }
 }
