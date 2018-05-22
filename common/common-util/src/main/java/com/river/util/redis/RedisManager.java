@@ -98,7 +98,7 @@ public interface RedisManager {
      * @param key 键
      * @return 对应的多个键值
      */
-    Map<String,String> hmget(String key);
+    Map<Object, Object> hmget(String key);
 
 
     /**

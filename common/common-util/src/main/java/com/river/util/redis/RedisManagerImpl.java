@@ -36,6 +36,7 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean expire(String key, long time) {
+        logger.info("指定缓存失效时间：key={},time={} s", key, time);
         try {
             if (time > 0) {
                 redisTemplate.expire(key, time, TimeUnit.SECONDS);
@@ -90,7 +91,7 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public String get(String key) {
-        return null;
+        return redisTemplate.opsForValue().get(key);
     }
 
     /**
@@ -102,7 +103,14 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean set(String key, String value) {
-        return false;
+        logger.info("普通缓存放入key={},value={}", key, value);
+        try {
+            redisTemplate.opsForValue().set(key, value);
+            return true;
+        } catch (Exception e) {
+            logger.error("普通缓存放入异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -115,8 +123,20 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean set(String key, String value, long time) {
-        return false;
+        logger.info("普通缓存放入并设置时间key=【" + key + "】 value=【" + value + "】 time=【" + time + "】 s");
+        try {
+            if (time > 0) {
+                redisTemplate.opsForValue().set(key, value, time, TimeUnit.SECONDS);
+            } else {
+                set(key, value);
+            }
+            return true;
+        } catch (Exception e) {
+            logger.error("普通缓存放入并设置时间异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
+
 
     /**
      * 递增
@@ -127,7 +147,11 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public long incr(String key, long delta) {
-        return 0;
+        logger.info("递增key=[{}] delta=[{}]", key, delta);
+        if (delta < 0) {
+            throw new ServiceException("递增因子必须大于0");
+        }
+        return redisTemplate.opsForValue().increment(key, delta);
     }
 
     /**
@@ -139,7 +163,11 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public long decr(String key, long delta) {
-        return 0;
+        logger.info("递减key=[{}] delta=[{}]", key, delta);
+        if (delta < 0) {
+            throw new ServiceException("递增因子必须大于0");
+        }
+        return redisTemplate.opsForValue().increment(key, -delta);
     }
 
     /**
@@ -151,7 +179,7 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public String hget(String key, String item) {
-        return null;
+        return (String) redisTemplate.opsForHash().get(key, item);
     }
 
     /**
@@ -161,8 +189,8 @@ public class RedisManagerImpl implements RedisManager {
      * @return 对应的多个键值
      */
     @Override
-    public Map<String, String> hmget(String key) {
-        return null;
+    public Map<Object, Object> hmget(String key) {
+        return redisTemplate.opsForHash().entries(key);
     }
 
     /**
@@ -174,7 +202,14 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean hmset(String key, Map<String, String> map) {
-        return false;
+        logger.info("HashSet  key=" + key + " map=" + map);
+        try {
+            redisTemplate.opsForHash().putAll(key, map);
+            return true;
+        } catch (Exception e) {
+            logger.error("HashSet异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -187,7 +222,17 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean hmset(String key, Map<String, String> map, long time) {
-        return false;
+        logger.info("HashSet 并设置时间  key=" + key + " map=" + map + "time=" + time + " s");
+        try {
+            redisTemplate.opsForHash().putAll(key, map);
+            if (time > 0) {
+                expire(key, time);
+            }
+            return true;
+        } catch (Exception e) {
+            logger.error("HashSet 并设置时间异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -200,7 +245,14 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean hset(String key, String item, String value) {
-        return false;
+        logger.info("一张hash表中放入数据,如果不存在将创建 key=" + key + " item=" + item + " value=" + value);
+        try {
+            redisTemplate.opsForHash().put(key, item, value);
+            return true;
+        } catch (Exception e) {
+            logger.error(" 向一张hash表中放入数据,如果不存在将创建异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -214,7 +266,17 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean hset(String key, String item, String value, long time) {
-        return false;
+        logger.info("一张hash表中放入数据,设置时间 key=" + key + " item=" + item + " value=" + value + " time=" + time + " s");
+        try {
+            redisTemplate.opsForHash().put(key, item, value);
+            if (time > 0) {
+                expire(key, time);
+            }
+            return true;
+        } catch (Exception e) {
+            logger.error("一张hash表中放入数据,设置时间异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -225,7 +287,8 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public void hdel(String key, String... item) {
-
+        logger.info("删除hash表中的值 key=" + key + "item=" + item);
+        redisTemplate.opsForHash().delete(key, item);
     }
 
     /**
@@ -237,7 +300,7 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean hHasKey(String key, String item) {
-        return false;
+        return redisTemplate.opsForHash().hasKey(key,item);
     }
 
     /**
@@ -250,7 +313,16 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public double hincr(String key, String item, double by) {
-        return 0;
+        logger.info("hash递增 key=" + key + " item=" +item + " by=" + by);
+        try {
+            if(by < 0) {
+                throw new ServiceException("递增因子必须大于0");
+            }
+            return redisTemplate.opsForHash().increment(key,item,by);
+        } catch (Exception e) {
+            logger.error("hash递增异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -263,7 +335,16 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public double hdecr(String key, String item, double by) {
-        return 0;
+        logger.info("hash递减 key=" + key + " item=" +item + " by=" + by);
+        try {
+            if(by < 0) {
+                throw new ServiceException("递减因子必须大于0");
+            }
+            return redisTemplate.opsForHash().increment(key,item,-by);
+        } catch (Exception e) {
+            logger.error("hash递减异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -274,7 +355,7 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public Set<String> sGet(String key) {
-        return null;
+        return redisTemplate.opsForSet().members(key);
     }
 
     /**
@@ -286,7 +367,7 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean sHasKey(String key, String value) {
-        return false;
+        return redisTemplate.opsForSet().isMember(key,value);
     }
 
     /**
@@ -298,7 +379,13 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public long sSet(String key, String... values) {
-        return 0;
+        logger.info("将数据放入set缓存 key=" + key +" value=" + values);
+        try {
+            return redisTemplate.opsForSet().add(key,values);
+        } catch (Exception e) {
+            logger.error("将数据放入set缓存异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -311,7 +398,17 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public long sSetAndTime(String key, long time, String... values) {
-        return 0;
+        logger.info("将数据放入set缓存 key=" + key +" value=" + values + " time=" + time + " s");
+        try {
+            long count =  redisTemplate.opsForSet().add(key,values);
+            if(time > 0) {
+                expire(key,time);
+            }
+            return count;
+        } catch (Exception e) {
+            logger.error("将数据放入set缓存异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -322,7 +419,7 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public long sGetSetSize(String key) {
-        return 0;
+        return redisTemplate.opsForSet().size(key);
     }
 
     /**
@@ -334,7 +431,13 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public long setRemove(String key, String... values) {
-        return 0;
+        logger.info("移除值为value的 key=" + key +" value=" + values);
+        try {
+            return   redisTemplate.opsForSet().remove(key,values);
+        } catch (Exception e) {
+            logger.error("移除值为value的异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -347,7 +450,7 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public List<String> lGet(String key, long start, long end) {
-        return null;
+        return redisTemplate.opsForList().range(key,start,end);
     }
 
     /**
@@ -358,7 +461,7 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public long lGetListSize(String key) {
-        return 0;
+        return redisTemplate.opsForList().size(key);
     }
 
     /**
@@ -370,7 +473,7 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public String lGetIndex(String key, long index) {
-        return null;
+        return redisTemplate.opsForList().index(key,index);
     }
 
     /**
@@ -382,7 +485,14 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean lSet(String key, String value) {
-        return false;
+        logger.info("将list放入缓存 key=" + key +" value=" + value);
+        try {
+            redisTemplate.opsForList().rightPush(key,value);
+            return true;
+        } catch (Exception e) {
+            logger.error("将list放入缓存异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -395,7 +505,17 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean lSet(String key, String value, long time) {
-        return false;
+        logger.info("将list放入缓存  key=" + key +" value=" + value +" time= " +time+ " s" );
+        try {
+            redisTemplate.opsForList().rightPush(key,value);
+            if(time > 0) {
+                expire(key,time);
+            }
+            return true;
+        } catch (Exception e) {
+            logger.error("将list放入缓存异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -407,7 +527,14 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean lSet(String key, List<String> value) {
-        return false;
+        logger.info("将list放入缓存  key=" + key +" value=" + value);
+        try {
+            redisTemplate.opsForList().rightPushAll(key,value);
+            return true;
+        } catch (Exception e) {
+            logger.error("将list放入缓存异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -420,7 +547,17 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean lSet(String key, List<String> value, long time) {
-        return false;
+        logger.info("将list放入缓存  key=" + key +" value=" + value +" time= " +time+ " s" );
+        try {
+            redisTemplate.opsForList().rightPushAll(key,value);
+            if(time > 0) {
+                expire(key,time);
+            }
+            return true;
+        } catch (Exception e) {
+            logger.error("将list放入缓存异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -433,7 +570,14 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public boolean lUpdateIndex(String key, long index, String value) {
-        return false;
+        logger.info("根据索引修改list中的某条数据  key=" + key +" value=" + value +" index= " +index);
+        try {
+            redisTemplate.opsForList().set(key,index,value);
+            return true;
+        } catch (Exception e) {
+            logger.error("根据索引修改list中的某条数据异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 
     /**
@@ -446,6 +590,13 @@ public class RedisManagerImpl implements RedisManager {
      */
     @Override
     public long lRemove(String key, long count, String value) {
-        return 0;
+        logger.info("移除N个值为value  key=" + key +" value=" + value +" count= " +count);
+        try {
+            Long remove = redisTemplate.opsForList().remove(key,count,value);
+            return remove;
+        } catch (Exception e) {
+            logger.error("移除N个值为value异常", e);
+            throw new ServiceException(ResCodeEnum.sys_error);
+        }
     }
 }
